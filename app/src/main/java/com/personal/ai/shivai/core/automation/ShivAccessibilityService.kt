@@ -7,6 +7,9 @@ import android.graphics.Rect
 import android.os.Bundle
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.personal.ai.shivai.core.security.PaymentShield
+import com.personal.ai.shivai.core.security.PrivacyModeController
+import com.personal.ai.shivai.core.security.SensitiveAppRegistry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +29,8 @@ class ShivAccessibilityService : AccessibilityService() {
             if (pkg.isNotBlank() && pkg != _currentPackage.value) {
                 _currentPackage.value = pkg
                 _lastChangeTime.value = System.currentTimeMillis()
+                // Phase 3: Trigger Sensitive App Privacy Mode & Payment Protection
+                PrivacyModeController.onPackageChanged(pkg)
             }
         }
     }
@@ -43,14 +48,25 @@ class ShivAccessibilityService : AccessibilityService() {
     fun captureDeviceContext(): DeviceContext {
         val root = rootInActiveWindow
         val pkg = _currentPackage.value
+        val isPrivacyActive = PrivacyModeController.isPrivacyModeActive.value
+        val category = PrivacyModeController.currentCategory.value
+
         if (root == null) {
             return DeviceContext(pkg, "Unavailable/Restricted Window", emptyList())
         }
+
         val elements = mutableListOf<AccessibleNode>()
         traverseNodeTree(root, elements)
+
+        val windowTitle = if (isPrivacyActive) {
+            "Protected Interface [Privacy Mode: ${category?.name ?: "SENSITIVE"}]"
+        } else {
+            root.windowTitle?.toString() ?: ""
+        }
+
         return DeviceContext(
             currentPackage = root.packageName?.toString() ?: pkg,
-            windowTitle = root.windowTitle?.toString() ?: "",
+            windowTitle = windowTitle,
             accessibleNodes = elements
         )
     }
@@ -60,20 +76,41 @@ class ShivAccessibilityService : AccessibilityService() {
         val bounds = Rect()
         node.getBoundsInScreen(bounds)
 
-        val text = node.text?.toString() ?: ""
-        val desc = node.contentDescription?.toString() ?: ""
+        val isPassword = node.isPassword
+        val rawText = node.text?.toString()
+        val rawDesc = node.contentDescription?.toString()
         val viewId = node.viewIdResourceName ?: ""
         val className = node.className?.toString() ?: ""
 
-        if (text.isNotBlank() || desc.isNotBlank() || node.isClickable || node.isEditable) {
+        // Mask password, PIN, OTP, and banking screen nodes
+        val (safeText, safeDesc) = PrivacyModeController.maskNodeIfNeeded(
+            text = rawText,
+            contentDesc = rawDesc,
+            viewId = viewId,
+            isPassword = isPassword
+        )
+
+        val isClickable = if (PrivacyModeController.isPrivacyModeActive.value || isPassword) {
+            false
+        } else {
+            node.isClickable
+        }
+
+        val isEditable = if (PrivacyModeController.isPrivacyModeActive.value || isPassword) {
+            false
+        } else {
+            node.isEditable
+        }
+
+        if (safeText.isNotBlank() || safeDesc.isNotBlank() || node.isClickable || node.isEditable) {
             outList.add(
                 AccessibleNode(
-                    text = text,
-                    contentDescription = desc,
-                    viewId = viewId,
+                    text = safeText,
+                    contentDescription = safeDesc,
+                    viewId = if (isPassword) "protected_credential_id" else viewId,
                     className = className,
-                    isClickable = node.isClickable,
-                    isEditable = node.isEditable,
+                    isClickable = isClickable,
+                    isEditable = isEditable,
                     isScrollable = node.isScrollable,
                     boundsInScreen = bounds
                 )
@@ -86,11 +123,28 @@ class ShivAccessibilityService : AccessibilityService() {
     }
 
     fun clickElementByText(text: String, exact: Boolean = false): Boolean {
+        val pkg = _currentPackage.value
+
+        // Safety lockdown: Check Privacy Mode & Payment Shield
+        if (!PrivacyModeController.isActionAllowed(pkg, isPasswordOrCredential = false, actionDescription = "Click '$text'")) {
+            return false
+        }
+        val paymentAssessment = PaymentShield.evaluateAction(text, pkg)
+        if (paymentAssessment.isBlocked) {
+            return false
+        }
+
         val root = rootInActiveWindow ?: return false
         val matches = root.findAccessibilityNodeInfosByText(text)
         if (matches.isNullOrEmpty()) return false
 
         for (node in matches) {
+            // Guard: Never click on credential/password or payment confirmation nodes
+            if (node.isPassword || SensitiveAppRegistry.isSensitiveField(node.text?.toString(), node.contentDescription?.toString(), node.viewIdResourceName, node.isPassword)) {
+                PrivacyModeController.isActionAllowed(pkg, isPasswordOrCredential = true, actionDescription = "Click on credential element")
+                return false
+            }
+
             val matchesRule = if (exact) {
                 node.text?.toString().equals(text, ignoreCase = true) ||
                         node.contentDescription?.toString().equals(text, ignoreCase = true)
@@ -113,12 +167,26 @@ class ShivAccessibilityService : AccessibilityService() {
     }
 
     fun setTextInput(text: String, fieldIndex: Int = 0): Boolean {
+        val pkg = _currentPackage.value
+
+        // Safety lockdown: Check Privacy Mode
+        if (!PrivacyModeController.isActionAllowed(pkg, isPasswordOrCredential = false, actionDescription = "Set text input")) {
+            return false
+        }
+
         val root = rootInActiveWindow ?: return false
         val editables = mutableListOf<AccessibilityNodeInfo>()
         findEditableNodes(root, editables)
 
         if (editables.isNotEmpty() && fieldIndex < editables.size) {
             val target = editables[fieldIndex]
+
+            // Guard: Never type into password/PIN/OTP fields
+            if (target.isPassword || SensitiveAppRegistry.isSensitiveField(target.text?.toString(), target.contentDescription?.toString(), target.viewIdResourceName, target.isPassword)) {
+                PrivacyModeController.isActionAllowed(pkg, isPasswordOrCredential = true, actionDescription = "Type text into credential field")
+                return false
+            }
+
             val bundle = Bundle().apply {
                 putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
             }
@@ -129,13 +197,18 @@ class ShivAccessibilityService : AccessibilityService() {
 
     private fun findEditableNodes(node: AccessibilityNodeInfo?, out: MutableList<AccessibilityNodeInfo>) {
         if (node == null) return
-        if (node.isEditable) out.add(node)
+        if (node.isEditable && !node.isPassword) out.add(node)
         for (i in 0 until node.childCount) {
             findEditableNodes(node.getChild(i), out)
         }
     }
 
     fun scroll(forward: Boolean = true): Boolean {
+        val pkg = _currentPackage.value
+        if (PrivacyModeController.isPrivacyModeActive.value) {
+            // Restrict scrolling in sensitive apps to avoid accidental tapjacking
+            return false
+        }
         val root = rootInActiveWindow ?: return false
         val scrollable = findFirstScrollable(root) ?: return false
         val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
@@ -153,6 +226,12 @@ class ShivAccessibilityService : AccessibilityService() {
     }
 
     fun dispatchCoordinateTap(x: Float, y: Float, durationMs: Long = 100): Boolean {
+        val pkg = _currentPackage.value
+        // Guard: Disallow blind coordinate taps when Privacy Mode is active
+        if (!PrivacyModeController.isActionAllowed(pkg, isPasswordOrCredential = false, actionDescription = "Coordinate tap ($x, $y)")) {
+            return false
+        }
+
         val path = Path().apply { moveTo(x, y) }
         val stroke = GestureDescription.StrokeDescription(path, 0, durationMs)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
