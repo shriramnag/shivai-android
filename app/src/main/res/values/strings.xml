@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Shiv AI</string>
+    <string name="accessibility_service_desc">Shiv AI uses accessibility to inspect on-screen elements for user-instructed navigation and tasks. No private screen data is stored or transmitted without user confirmation.</string>
+</resources>
