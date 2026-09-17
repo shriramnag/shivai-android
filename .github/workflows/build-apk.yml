@@ -34,13 +34,13 @@ jobs:
 
     steps:
 
-      # 1. Checkout
+      # 1. Checkout repository
       - name: Checkout ShivAI
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
-      # 2. Java 17
+      # 2. Setup Java 17
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -66,58 +66,69 @@ jobs:
           chmod +x gradlew
 
           if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "gradle-wrapper.jar is missing."
-            echo "Generating Gradle wrapper with Gradle 8.9..."
-
-            if command -v gradle >/dev/null 2>&1; then
-              gradle wrapper --gradle-version 8.9
-            else
-              echo "ERROR: Gradle is not available and wrapper JAR is missing."
-              exit 1
-            fi
-
-            chmod +x gradlew
+            echo "ERROR: gradle-wrapper.jar is missing."
+            echo "The Gradle wrapper JAR must be committed to the repository."
+            exit 1
           fi
 
-          echo "Gradle wrapper files:"
+          echo "Gradle wrapper found."
           ls -la gradlew
           ls -la gradle/wrapper/
 
-      # 5. Verify Gradle 8.9
+      # 5. Verify Gradle
       - name: Verify Gradle
         run: |
           ./gradlew --version
 
-      # 6. Clean build
+      # 6. Clean project
       - name: Clean Project
         run: |
-          ./gradlew clean --no-daemon --stacktrace
+          ./gradlew clean \
+            --no-daemon \
+            --stacktrace
 
       # 7. Build Debug APK
       - name: Build Debug APK
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == null }}
         run: |
-          echo "Building ShivAI Debug APK..."
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          echo "======================================"
+          echo "Building ShivAI Debug APK"
+          echo "======================================"
+
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info
 
       # 8. Build Release APK
       - name: Build Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' }}
         run: |
-          echo "Building ShivAI Release APK..."
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          echo "======================================"
+          echo "Building ShivAI Release APK"
+          echo "======================================"
 
-      # 9. Find APK
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --stacktrace \
+            --info
+
+      # 9. Show APK output
       - name: Find Generated APK
         run: |
-          echo "=== APK OUTPUT ==="
+          echo "======================================"
+          echo "APK FILES"
+          echo "======================================"
 
-          if [ -d "app/build/outputs/apk" ]; then
-            find app/build/outputs/apk -type f -name "*.apk" -print
-          else
-            echo "ERROR: APK output directory does not exist."
+          if [ ! -d "app/build/outputs/apk" ]; then
+            echo "ERROR: APK output directory was not created."
             exit 1
           fi
+
+          find app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -print
 
       # 10. Collect APK
       - name: Collect APK Files
@@ -129,43 +140,51 @@ jobs:
             -name "*.apk" \
             -exec cp -v {} artifacts/apk/ \;
 
-          echo "=== ARTIFACTS ==="
+          echo "======================================"
+          echo "COLLECTED APK"
+          echo "======================================"
+
           ls -lh artifacts/apk/
 
       # 11. Upload APK
       - name: Upload ShivAI APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ShivAI-v1.0.0-APK
           path: artifacts/apk/*.apk
           retention-days: 30
           if-no-files-found: error
 
-      # 12. Run unit tests AFTER APK build
+      # 12. Run unit tests
       - name: Run Unit Tests
         id: unit_tests
         continue-on-error: true
         run: |
-          echo "Running ShivAI unit tests..."
-          ./gradlew testDebugUnitTest --no-daemon --stacktrace
+          echo "======================================"
+          echo "Running ShivAI Unit Tests"
+          echo "======================================"
+
+          ./gradlew testDebugUnitTest \
+            --no-daemon \
+            --stacktrace
 
       # 13. Upload test reports
       - name: Upload Test Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ShivAI-test-reports
           path: app/build/reports/tests/testDebugUnitTest/
           retention-days: 7
           if-no-files-found: ignore
 
-      # 14. Report test status
-      - name: Test Result
+      # 14. Test status
+      - name: Test Status
         if: always()
         run: |
           if [ "${{ steps.unit_tests.outcome }}" = "success" ]; then
             echo "Unit tests PASSED."
           else
-            echo "WARNING: Unit tests FAILED."
-            echo "APK build was completed separately."
+            echo "Unit tests FAILED."
+            echo "APK build was attempted independently."
           fi
