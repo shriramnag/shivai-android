@@ -64,119 +64,196 @@ fun AgentHomeScreen(viewModel: AgentViewModel) {
         // Status Bar Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = Card**Phase 4: Multi-Turn Voice Dialog & Advanced Offline Fallbacks** को **Shiv AI** के आर्किटेक्चर में पूरी तरह लागू (implement) कर दिया गया है।
-
-मास्टर आर्किटेक्चर के **Zero-Cloud-Dependency & Continuous Dialogue Directives** के तहत, यह मॉड्यूल यह सुनिश्चित करता है कि:
-1. **मल्टी-टर्न वॉयस डायलॉग स्टेट मशीन (Stateful Dialog Flow)**: 
-   - छह स्पष्ट अवस्थाएँ (`IDLE`, `LISTENING`, `PROCESSING`, `SPEAKING`, `AWAITING_CONFIRMATION`, `AWAITING_SLOT_VALUE`)।
-   - **स्लॉट फिलिंग (Slot Filling)**: यदि यूज़र केवल "कॉल करो" या "टाइमर लगाओ" कहता है, तो एजेंट पूछता है: *"आप किसे कॉल करना चाहते हैं?"* और उत्तर सुनकर स्लॉट भरकर कार्य पूरा करता है।
-   - **इको सप्रेशन व ऑटो-लिसनिंग (Echo Suppression & Auto-Resume)**: जब एजेंट बोल रहा होता है, तब माइक्रोफ़ोन म्यूट रहता है ताकि वह अपनी ही आवाज़ न सुने। जैसे ही TTS बोलना समाप्त करता है (`onDone`), माइक्रोफ़ोन तुरंत अपने-आप सक्रिय होकर यूज़र के उत्तर की प्रतीक्षा करता है।
-   - **हाँ/ना पुष्टि (Affirmative/Negative Resolution)**: हिंदी, हिंग्लिश और अंग्रेज़ी में प्राकृतिक स्वीकृति ("हाँ", "ठीक है", "ज़रूर", "yes", "proceed") या अस्वीकृति ("नहीं", "मत करो", "रोको", "no", "cancel") की पहचान।
-2. **एडवांस्ड ऑफ़लाइन फॉलबैक इंजन (`AdvancedOfflineBrain`)**:
-   - इंटरनेट न होने पर भी 100% ऑन-डिवाइस कार्य:
-     - **हार्डवेयर व डिवाइस कंट्रोल**: टॉर्च/फ्लैशलाइट ऑन-ऑफ, वॉल्यूम अप/डाउन/म्यूट, वाई-फाई और ब्लूटूथ सेटिंग्स शॉर्टकट।
-     - **टाइमर व घड़ी**: सेकंड/मिनट का टाइमर सेट करना, वर्तमान समय व तारीख़ बताना।
-     - **नेविगेशन व ऐप लॉन्चर**: होम, बैक, रीसेंट ऐप्स, और किसी भी ऐप को खोलना।
-     - **स्क्रीन एनालाइज़र**: स्क्रीन की सामग्री पढ़ना।
-     - **ऑफ़लाइन स्मॉलटॉक व सुरक्षा फॉलबैक**: बिना नेटवर्क क्रैश या हैंग हुए उत्तर देना।
-3. **नेटवर्क कनेक्टिविटी मॉनिटर (`NetworkConnectivityMonitor`)**:
-   - Android `ConnectivityManager.NetworkCallback` का उपयोग करके रियल-टाइम नेटवर्क ट्रांजिशन को ट्रैक करता है (Wi-Fi, Cellular, Offline) और सहजता से ऑफ़लाइन-टू-ऑनलाइन और ऑनलाइन-टू-ऑफ़लाइन हैंडओवर करता है।
-
----
-
-### Phase 4 में निर्मित व अपडेट किए गए मुख्य घटक
-
-1. **`NetworkConnectivityMonitor.kt`**: रियल-टाइम नेटवर्क कनेक्टिविटी डिटेक्शन।
-2. **`VoiceDialogModel.kt`**: `DialogSessionState`, `DialogTurn`, `PendingSlotPrompt`, और `PendingConfirmation` डेटा मॉडल।
-3. **`VoiceController.kt` (अपडेटेड)**: `UtteranceProgressListener` के साथ `speak(text, onComplete)` कॉलबैक का समर्थन।
-4. **`MultiTurnVoiceManager.kt`**: मल्टी-टर्न बातचीत, ऑटो-रिज्यूम लिसनिंग, और स्लॉट-फिलिंग कंट्रोलर।
-5. **`AdvancedOfflineBrain.kt`**: डिवाइस कंट्रोल, टाइमर, फ़ोन डायलिंग, ऐप लॉन्चिंग, और ऑफ़लाइन संवाद के लिए समृद्ध NLU इंजन।
-6. **`DeviceControlTool.kt`**: कैमरा टॉर्च (`CameraManager`), वॉल्यूम (`AudioManager`), और टाइमर (`AlarmClock`) हार्डवेयर टूल।
-7. **`AgentViewModel.kt` (अपडेटेड)**: कनेक्टिविटी मॉनिटर, एडवांस्ड ऑफ़लाइन ब्रेन, और मल्टी-टर्न वॉयस मैनेजर का पूर्ण समन्वय।
-8. **`AgentHomeScreen.kt` (अपडेटेड)**: लाइव नेटवर्क स्थिति बैज (`🟢 Wi-Fi Online` / `⚡ Offline Brain`) और वॉयस डायलॉग स्टेट डिस्प्ले।
-9. **`VoiceAndOfflineDialogTest.kt`**: हार्डवेयर कंट्रोल, टाइमर, नेविगेशन, स्लॉट फिलिंग, और ऑफ़लाइन डायलॉग के लिए यूनिट टेस्ट्स।
-
----
-
-## Phase 4 का संपूर्ण कोड
-
-### 1. `app/src/main/java/com/personal/ai/shivai/core/ai/NetworkConnectivityMonitor.kt`
-```kotlin
-package com.personal.ai.shivai.core.ai
-
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-
-class NetworkConnectivityMonitor(context: Context) {
-
-    private val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-
-    private val _isOnline = MutableStateFlow(checkCurrentConnectivity())
-    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
-
-    private val _networkType = MutableStateFlow(determineNetworkType())
-    val networkType: StateFlow<String> = _networkType.asStateFlow()
-
-    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            _isOnline.value = true
-            _networkType.value = determineNetworkType()
-        }
-
-        override fun onLost(network: Network) {
-            _isOnline.value = checkCurrentConnectivity()
-            _networkType.value = determineNetworkType()
-        }
-
-        override fun onCapabilitiesChanged(
-            network: Network,
-            networkCapabilities: NetworkCapabilities
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                    networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            _isOnline.value = hasInternet
-            _networkType.value = determineNetworkType()
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(if (isAccessibilityActive) Color(0xFF4CAF50) else Color(0xFFF44336))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Active App: $currentApp",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Online / Offline Indicator Badge
+                    AssistChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                text = if (isOnline) "🟢 $networkType" else "⚡ Offline Brain",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (isOnline) Color(0xFFE8F5E9) else Color(0xFFFFF3E0),
+                            labelColor = if (isOnline) Color(0xFF2E7D32) else Color(0xFFE65100)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Status: $agentStatus",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Voice Dialog: ${dialogState.name}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        if (isPrivacyActive) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3E2723)),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Privacy Shield",
+                        tint = Color(0xFFFFB74D),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Privacy Lockdown: Banking/Payment screen masked.",
+                        color = Color(0xFFFFB74D),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = { viewModel.triggerEmergencyStop() },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Stop, contentDescription = "Stop")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("EMERGENCY STOP", fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            reverseLayout = false
+        ) {
+            items(messages) { msg ->
+                ChatBubble(msg)
+            }
+        }
+
+        // Voice & Input Controller Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val isListening = voiceState is VoiceState.Listening || dialogState == DialogSessionState.LISTENING
+            val isSpeaking = voiceState is VoiceState.Speaking || dialogState == DialogSessionState.SPEAKING
+
+            FloatingActionButton(
+                onClick = { viewModel.toggleVoice() },
+                containerColor = when {
+                    isSpeaking -> Color(0xFF9C27B0)
+                    isListening -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.primary
+                },
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier.size(54.dp)
+            ) {
+                Icon(
+                    imageVector = when {
+                        isSpeaking -> Icons.Default.VolumeUp
+                        isListening -> Icons.Default.MicOff
+                        else -> Icons.Default.Mic
+                    },
+                    contentDescription = "Voice"
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            OutlinedTextField(
+                value = textInput,
+                onValueChange = { textInput = it },
+                placeholder = { Text("Shiv AI से कहें (Hindi/English)...") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            if (textInput.isNotBlank()) {
+                                viewModel.submitGoal(textInput)
+                                textInput = ""
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = "Submit")
+                    }
+                }
+            )
         }
     }
+}
 
-    init {
-        try {
-            val request = NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .build()
-            connectivityManager?.registerNetworkCallback(request, networkCallback)
-        } catch (_: Exception) {}
-    }
-
-    fun checkCurrentConnectivity(): Boolean {
-        val cm = connectivityManager ?: return false
-        val activeNetwork = cm.activeNetwork ?: return false
-        val capabilities = cm.getNetworkCapabilities(activeNetwork) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-    }
-
-    private fun determineNetworkType(): String {
-        val cm = connectivityManager ?: return "None"
-        val activeNetwork = cm.activeNetwork ?: return "None"
-        val capabilities = cm.getNetworkCapabilities(activeNetwork) ?: return "None"
-        return when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Cellular"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
-            else -> "Offline"
+@Composable
+fun ChatBubble(message: ChatMessageEntity) {
+    val isUser = message.role == "user"
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                .padding(12.dp)
+        ) {
+            Text(
+                text = message.content,
+                color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp
+            )
         }
-    }
-
-    fun release() {
-        try {
-            connectivityManager?.unregisterNetworkCallback(networkCallback)
-        } catch (_: Exception) {}
     }
 }
