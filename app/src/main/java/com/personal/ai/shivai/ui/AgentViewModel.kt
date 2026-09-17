@@ -11,8 +11,7 @@ import com.personal.ai.shivai.core.memory.AgentDatabase
 import com.personal.ai.shivai.core.memory.ChatMessageEntity
 import com.personal.ai.shivai.core.security.*
 import com.personal.ai.shivai.core.tools.*
-import com.personal.ai.shivai.core.voice.VoiceController
-import com.personal.ai.shivai.core.voice.VoiceState
+import com.personal.ai.shivai.core.voice.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,8 +26,13 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
     val stopController = EmergencyStopController()
     private val safetyEngine = SafetyEngine()
-    private val heuristicBrain = HeuristicLocalBrain()
     private val aiProvider = OpenAiCompatibleProvider()
+
+    // Phase 4: Network Connectivity & Advanced Offline Brain
+    val connectivityMonitor = NetworkConnectivityMonitor(application)
+    val isOnline: StateFlow<Boolean> = connectivityMonitor.isOnline
+    val networkType: StateFlow<String> = connectivityMonitor.networkType
+    val offlineBrain = AdvancedOfflineBrain()
 
     // Phase 2 & 3: Cyber Security & Privacy Shield
     val securityAgent = CyberSecurityAgent(application)
@@ -50,7 +54,9 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
         register(DelayTool())
         register(WebSearchTool(application, securityAgent))
         register(ClipboardTool(application))
-        // Security Tools
+        // Phase 4: Device Hardware Control Tool
+        register(DeviceControlTool(application))
+        // Phase 2: Security Tools
         register(ApkScannerTool(securityAgent))
         register(LinkScannerTool(securityAgent))
         register(QuarantineTool(securityAgent))
@@ -67,10 +73,19 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     val confirmationPrompt: StateFlow<String?> = _confirmationPrompt.asStateFlow()
     private var confirmationCallback: ((Boolean) -> Unit)? = null
 
+    // Phase 4: Multi-Turn Voice Controller and Dialog Manager
     val voiceController = VoiceController(application) { command ->
-        submitGoal(command)
+        voiceManager.onUserSpeechReceived(command)
     }
     val voiceState: StateFlow<VoiceState> = voiceController.voiceState
+
+    val voiceManager: MultiTurnVoiceManager = MultiTurnVoiceManager(
+        voiceController = voiceController,
+        scope = viewModelScope,
+        onExecuteGoal = { goal -> submitGoal(goal) }
+    )
+    val dialogState: StateFlow<DialogSessionState> = voiceManager.sessionState
+    val dialogHistory: StateFlow<List<DialogTurn>> = voiceManager.dialogHistory
 
     val conversationMessages = memoryDao.getMessages("default_conv")
 
@@ -86,42 +101,84 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
             if (paymentCheck.isBlocked) {
                 val warning = PaymentShield.formatWarning(paymentCheck)
                 memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = warning))
-                voiceController.speak("Payment Shield active. Automation is suspended for financial and credential safety. Please proceed manually.")
+                voiceManager.speakFinal("Payment Shield active. Financial and credential operations must be done manually for your security.")
+                voiceManager.recordTurn(goal, warning, "PAYMENT_BLOCKED")
                 return@launch
             }
 
-            val plan = heuristicBrain.parseGoal(goal, currentPkg)
+            // Phase 4: Parse with Advanced Offline Brain
+            val offlineResult = offlineBrain.parseGoal(goal, currentPkg)
 
-            if (plan == null) {
-                val screenSummary = ShivAccessibilityService.instance?.captureDeviceContext()?.toSemanticSummary() ?: ""
-                val aiResponse = aiProvider.generateCompletion(
-                    listOf(AiMessage("user", goal)),
-                    screenSummary
+            // 1. Missing Slot Handling (Multi-Turn Slot Filling)
+            if (offlineResult.requiresSlotPrompt && offlineResult.missingSlotName != null) {
+                val slotPrompt = PendingSlotPrompt(
+                    intent = offlineResult.intent,
+                    targetSlot = offlineResult.missingSlotName,
+                    promptMessageHindi = offlineResult.slotPromptHindi ?: "कृपया अतिरिक्त जानकारी प्रदान करें।",
+                    promptMessageEnglish = offlineResult.slotPromptEnglish ?: "Please provide more details.",
+                    accumulatedSlots = offlineResult.slots.toMutableMap()
                 )
-                val responseText = aiResponse.getOrDefault("Command acknowledged.")
-                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = responseText))
-                voiceController.speak(responseText)
+                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = slotPrompt.promptMessageHindi))
+                voiceManager.requestSlotValue(slotPrompt)
                 return@launch
             }
 
-            val job = launch {
-                taskExecutor.executePlan(
-                    plan = plan,
-                    onStatusSpeech = { statusText ->
-                        voiceController.speak(statusText)
-                    },
-                    requestUserConfirmation = { preview ->
-                        _confirmationPrompt.value = preview
-                        kotlin.coroutines.suspendCoroutine { cont ->
-                            confirmationCallback = { decision ->
-                                _confirmationPrompt.value = null
-                                cont.resumeWith(Result.success(decision))
+            // 2. Direct Speech Answer (No Execution Plan Needed)
+            if (offlineResult.plan == null && offlineResult.directSpeechResponse != null && offlineResult.intent != "UNKNOWN_OFFLINE") {
+                val reply = offlineResult.directSpeechResponse
+                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = reply))
+                voiceManager.speakFinal(reply)
+                voiceManager.recordTurn(goal, reply, offlineResult.intent, offlineResult.slots)
+                return@launch
+            }
+
+            // 3. Executable Plan from Offline Brain
+            if (offlineResult.plan != null) {
+                val feedbackSpeech = offlineResult.directSpeechResponse ?: "कार्रवाई की जा रही है।"
+                voiceController.speak(feedbackSpeech)
+
+                val job = launch {
+                    taskExecutor.executePlan(
+                        plan = offlineResult.plan,
+                        onStatusSpeech = { statusText ->
+                            voiceController.speak(statusText)
+                        },
+                        requestUserConfirmation = { preview ->
+                            _confirmationPrompt.value = preview
+                            kotlin.coroutines.suspendCoroutine { cont ->
+                                confirmationCallback = { decision ->
+                                    _confirmationPrompt.value = null
+                                    cont.resumeWith(Result.success(decision))
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
+                stopController.registerJob(job)
+                voiceManager.recordTurn(goal, feedbackSpeech, offlineResult.intent, offlineResult.slots)
+                return@launch
             }
-            stopController.registerJob(job)
+
+            // 4. Intent Not Matched in Local Brain -> Check Connectivity
+            if (!isOnline.value) {
+                val offlineFallback = offlineResult.directSpeechResponse
+                    ?: "इंटरनेट कनेक्शन उपलब्ध नहीं है और यह कमांड ऑफ़लाइन समर्थित नहीं है।"
+                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = offlineFallback))
+                voiceManager.speakFinal(offlineFallback)
+                voiceManager.recordTurn(goal, offlineFallback, "OFFLINE_FALLBACK")
+                return@launch
+            }
+
+            // 5. Online: Fallback to Cloud AI Provider
+            val screenSummary = ShivAccessibilityService.instance?.captureDeviceContext()?.toSemanticSummary() ?: ""
+            val aiResponse = aiProvider.generateCompletion(
+                listOf(AiMessage("user", goal)),
+                screenSummary
+            )
+            val responseText = aiResponse.getOrDefault("Command acknowledged.")
+            memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = responseText))
+            voiceManager.speakFinal(responseText)
+            voiceManager.recordTurn(goal, responseText, "ONLINE_LLM")
         }
     }
 
@@ -132,8 +189,7 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
     fun triggerEmergencyStop() {
         val result = stopController.triggerEmergencyStop()
-        voiceController.stopSpeaking()
-        voiceController.stopListening()
+        voiceManager.reset()
         viewModelScope.launch {
             memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = result))
         }
@@ -191,6 +247,7 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        connectivityMonitor.release()
         voiceController.release()
     }
 }
