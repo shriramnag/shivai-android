@@ -18,4 +18,16 @@ data class DialogTurn(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-data class PendingSlotPrompt
+data class PendingSlotPrompt(
+    val intent: String,
+    val targetSlot: String,
+    val promptMessageHindi: String,
+    val promptMessageEnglish: String,
+    val accumulatedSlots: MutableMap<String, String>
+)
+
+data class PendingConfirmation(
+    val summaryMessage: String,
+    val onConfirmed: suspend () -> Unit,
+    val onCancelled: suspend () -> Unit
+)
