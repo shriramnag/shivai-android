@@ -161,6 +161,7 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
             // 4. Intent Not Matched in Local Brain -> Check Connectivity
             if (!isOnline.value) {
+                // Completely Offline: Provide Graceful Offline Guidance
                 val offlineFallback = offlineResult.directSpeechResponse
                     ?: "इंटरनेट कनेक्शन उपलब्ध नहीं है और यह कमांड ऑफ़लाइन समर्थित नहीं है।"
                 memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = offlineFallback))
