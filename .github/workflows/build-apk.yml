@@ -109,4 +109,3 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest/
           retention-days: 7
           if-no-files-found: ignore
-
