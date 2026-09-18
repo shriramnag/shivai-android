@@ -61,7 +61,7 @@ class ShivAccessibilityService : AccessibilityService() {
         val windowTitle = if (isPrivacyActive) {
             "Protected Interface [Privacy Mode: ${category?.name ?: "SENSITIVE"}]"
         } else {
-            root.windowTitle?.toString() ?: ""
+            root.window?.title?.toString() ?: ""
         }
 
         return DeviceContext(
