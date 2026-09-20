@@ -48,7 +48,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 3: Setup Gradle 8.9 to guarantee gradle binary on PATH
+      # Step 3: Setup Gradle 8.9 (guarantees gradle binary on PATH)
       - name: Setup Gradle Environment
         uses: gradle/actions/setup-gradle@v4
         with:
