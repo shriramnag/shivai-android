@@ -1,11 +1,19 @@
-<<<< REPLACE
-    fun evaluateRisk(
-        goal: String,
-        tool: String,
-        action: String,
-        targetPackage: String = ""
-    ): TrustLevel {
-==== WITH
+package com.personal.ai.shivai.core.agent
+
+import com.personal.ai.shivai.core.security.PaymentShield
+import com.personal.ai.shivai.core.security.SensitiveAppRegistry
+import com.personal.ai.shivai.core.termux.TermuxCommandPolicy
+import com.personal.ai.shivai.core.termux.TermuxRiskLevel
+import java.util.Locale
+
+class SafetyEngine {
+
+    private val criticalKeywords = listOf(
+        "delete", "remove", "wipe", "format", "send money", "transfer", "pay",
+        "purchase", "buy", "password", "factory reset", "पैसे भेजो", "डिलीट", "मिटाओ",
+        "upi pin", "atm pin", "cvv", "otp"
+    )
+
     fun evaluateRisk(
         goal: String,
         tool: String,
@@ -46,4 +54,14 @@
             else -> TrustLevel.SAFE
         }
     }
->>>>
+
+    fun isConfirmationRequired(level: TrustLevel): Boolean {
+        return level == TrustLevel.HIGH || level == TrustLevel.CRITICAL
+    }
+
+    fun isAutomationPermitted(packageName: String, isPasswordOrPin: Boolean = false): Boolean {
+        if (isPasswordOrPin) return false
+        if (SensitiveAppRegistry.isSensitivePackage(packageName)) return false
+        return true
+    }
+}
