@@ -24,6 +24,9 @@ on:
           - release
           - both
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build & Package APK
@@ -31,44 +34,51 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # Step 1: Checkout repository
+      # Step 1: Checkout repository with explicit token
       - name: Checkout Codebase
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Step 2: Set up Java Development Kit (JDK 17)
       - name: Set up Java Development Kit (JDK 17)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 3: Grant execute permission for gradlew
+      # Step 3: Setup Gradle 8.9 to guarantee gradle binary on PATH
+      - name: Setup Gradle Environment
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # Step 4: Grant execute permission for gradlew
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Step 4: Execute Unit Tests
+      # Step 5: Execute Unit Tests
       - name: Run Unit Tests
         run: |
           echo "Running Shiv AI unit test suite..."
           ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
-      # Step 5: Build Debug APK
+      # Step 6: Build Debug APK
       - name: Build Debug APK
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == null }}
         run: |
           echo "Compiling Shiv AI Debug APK..."
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # Step 6: Build Release APK (Unsigned)
+      # Step 7: Build Release APK (Unsigned)
       - name: Build Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' }}
         run: |
           echo "Compiling Shiv AI Release APK (Unsigned)..."
           ./gradlew assembleRelease --no-daemon --stacktrace || echo "Release build requires keystore configuration"
 
-      # Step 7: Collect generated APK files
+      # Step 8: Collect generated APK files
       - name: Collect Output APKs
         run: |
           mkdir -p artifacts/apk
@@ -76,19 +86,19 @@ jobs:
           echo "=== Collected APK Artifacts ==="
           ls -lh artifacts/apk/
 
-      # Step 8: Upload APK as downloadable Artifact
+      # Step 9: Upload APK as downloadable Artifact
       - name: Upload APKs as GitHub Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ShivAI-v1.0.0-APK
           path: artifacts/apk/*.apk
           retention-days: 30
           if-no-files-found: error
 
-      # Step 9: Upload test reports if available
+      # Step 10: Upload test reports if available
       - name: Upload Test Reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports
           path: app/build/reports/tests/testDebugUnitTest/
