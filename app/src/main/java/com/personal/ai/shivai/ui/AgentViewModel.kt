@@ -194,7 +194,9 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 listOf(AiMessage("user", goal)),
                 screenSummary
             )
-            val responseText = aiResponse.getOrDefault("Command acknowledged.")
+            val responseText = aiResponse.getOrElse {
+                "मैं यह समझ नहीं पाया। कृपया दोबारा कहें, या API key सेट करें ताकि मैं cloud AI से जवाब दे सकूँ।"
+            }
             memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = responseText))
             voiceManager.speakFinal(responseText)
             voiceManager.recordTurn(goal, responseText, "ONLINE_LLM")
