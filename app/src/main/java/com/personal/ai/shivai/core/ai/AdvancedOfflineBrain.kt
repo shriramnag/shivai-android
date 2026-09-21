@@ -25,6 +25,34 @@ class AdvancedOfflineBrain {
         val clean = goal.trim().lowercase(Locale.ROOT)
         val taskId = "TASK-${UUID.randomUUID().toString().take(8)}"
 
+        // 0. Greetings & Smalltalk (highest priority — answer instantly offline)
+        if (clean in listOf(
+                "hello", "hi", "hey", "हेलो", "हैलो", "नमस्ते", "नमस्कार",
+                "हेलो शिव", "हेलो शिव ai", "हेलो सीबीआई", "hello shiv", "hello ai",
+                "good morning", "good evening", "good night", "शुभ प्रभात", "शुभ रात्रि"
+            )
+        ) {
+            return OfflineIntentResult(
+                intent = "GREETING",
+                slots = emptyMap(),
+                plan = null,
+                directSpeechResponse = "नमस्ते! मैं Shiv AI हूँ — आपका पर्सनल ऑन-डिवाइस AI असिस्टेंट। मैं आपकी क्या सहायता कर सकता हूँ?"
+            )
+        }
+
+        // Coding / creation requests — honest offline response
+        if (clean.contains("game") || clean.contains("गेम") ||
+            clean.contains("बनाओ") || clean.contains("बना सकते") ||
+            clean.contains("code") || clean.contains("कोड") ||
+            clean.contains("app बनाओ") || clean.contains("website")) {
+            return OfflineIntentResult(
+                intent = "CODING_REQUEST",
+                slots = emptyMap(),
+                plan = null,
+                directSpeechResponse = "मैं अभी coding और app/game बनाने के लिए cloud AI पर निर्भर हूँ। कृपया internet connect करें और API key सेट करें, फिर मैं पूरी मदद कर सकता हूँ।"
+            )
+        }
+
         // 1. Navigation Intents
         if (clean in listOf("home", "go home", "होम", "होम स्क्रीन", "होम पर जाओ", "home jao", "home par jao")) {
             return OfflineIntentResult(
