@@ -5,7 +5,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// ShivAI Modern Dark Theme
 val NavyDeep      = Color(0xFF0A0E28)
 val NavySurface   = Color(0xFF131830)
 val NavyCard      = Color(0xFF1A2040)
@@ -36,8 +35,5 @@ private val ShivAIDarkScheme = darkColorScheme(
 
 @Composable
 fun ShivAiTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = ShivAIDarkScheme,
-        content = content
-    )
+    MaterialTheme(colorScheme = ShivAIDarkScheme, content = content)
 }
