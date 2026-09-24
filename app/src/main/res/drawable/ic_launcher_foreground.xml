@@ -1,31 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <path android:pathData="M54,12 A42,42 0 1,1 53.99,12 Z"
-        android:strokeColor="#7850DC" android:strokeWidth="3"
-        android:fillColor="@android:color/transparent"/>
-    <path android:pathData="M36,42 A18,18 0 0,1 72,42 A18,18 0,1 1 54,54"
-        android:strokeColor="#FFD73C" android:strokeWidth="7"
-        android:fillColor="@android:color/transparent" android:strokeLineCap="round"/>
-    <path android:pathData="M72,66 A18,18 0 0,1 36,66 A18,18 0,0 1 54,54"
-        android:strokeColor="#FFD73C" android:strokeWidth="7"
-        android:fillColor="@android:color/transparent" android:strokeLineCap="round"/>
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
 
-    <path android:pathData="M54,9 A3,3 0,1 0,54,15 A3,3 0,1 0,54,9 Z"
-        android:fillColor="#FFD73C"/>
-    <path android:pathData="M96,51 A3,3 0,1 0,96,57 A3,3 0,1 0,96,51 Z"
-        android:fillColor="#FFD73C"/>
-    <path android:pathData="M54,93 A3,3 0,1 0,54,99 A3,3 0,1 0,54,93 Z"
-        android:fillColor="#FFD73C"/>
-    <path android:pathData="M12,51 A3,3 0,1 0,12,57 A3,3 0,1 0,12,51 Z"
-        android:fillColor="#FFD73C"/>
-    <path android:pathData="M84,22 A2,2 0,1 0,84,26 A2,2 0,1 0,84,22 Z"
-        android:fillColor="#8C64FF"/>
-    <path android:pathData="M84,82 A2,2 0,1 0,84,86 A2,2 0,1 0,84,82 Z"
-        android:fillColor="#8C64FF"/>
-    <path android:pathData="M24,82 A2,2 0,1 0,24,86 A2,2 0,1 0,24,82 Z"
-        android:fillColor="#8C64FF"/>
-    <path android:pathData="M24,22 A2,2 0,1 0,24,26 A2,2 0,1 0,24,22 Z"
-        android:fillColor="#8C64FF"/>
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#7850DC"
+        android:strokeWidth="3"
+        android:pathData="M54,12 C77.196,12 96,30.804 96,54 C96,77.196 77.196,96 54,96 C30.804,96 12,77.196 12,54 C12,30.804 30.804,12 54,12 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFD73C"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:pathData="M36,42 C36,32.059 44.059,24 54,24 C63.941,24 72,32.059 72,42 C72,48.627 66.627,54 60,54" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFD73C"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:pathData="M72,66 C72,75.941 63.941,84 54,84 C44.059,84 36,75.941 36,66 C36,59.373 41.373,54 48,54" />
+
+    <path android:fillColor="#FFD73C" android:pathData="M54,9 C55.657,9 57,10.343 57,12 C57,13.657 55.657,15 54,15 C52.343,15 51,13.657 51,12 C51,10.343 52.343,9 54,9 Z" />
+    <path android:fillColor="#FFD73C" android:pathData="M96,51 C97.657,51 99,52.343 99,54 C99,55.657 97.657,57 96,57 C94.343,57 93,55.657 93,54 C93,52.343 94.343,51 96,51 Z" />
+    <path android:fillColor="#FFD73C" android:pathData="M54,93 C55.657,93 57,94.343 57,96 C57,97.657 55.657,99 54,99 C52.343,99 51,97.657 51,96 C51,94.343 52.343,93 54,93 Z" />
+    <path android:fillColor="#FFD73C" android:pathData="M12,51 C13.657,51 15,52.343 15,54 C15,55.657 13.657,57 12,57 C10.343,57 9,55.657 9,54 C9,52.343 10.343,51 12,51 Z" />
+
+    <path android:fillColor="#8C64FF" android:pathData="M84,22 C85.105,22 86,22.895 86,24 C86,25.105 85.105,26 84,26 C82.895,26 82,25.105 82,24 C82,22.895 82.895,22 84,22 Z" />
+    <path android:fillColor="#8C64FF" android:pathData="M84,82 C85.105,82 86,82.895 86,84 C86,85.105 85.105,86 84,86 C82.895,86 82,85.105 82,84 C82,82.895 82.895,82 84,82 Z" />
+    <path android:fillColor="#8C64FF" android:pathData="M24,82 C25.105,82 26,82.895 26,84 C26,85.105 25.105,86 24,86 C22.895,86 22,85.105 22,84 C22,82.895 22.895,82 24,82 Z" />
+    <path android:fillColor="#8C64FF" android:pathData="M24,22 C25.105,22 26,22.895 26,24 C26,25.105 25.105,26 24,26 C22.895,26 22,25.105 22,24 C22,22.895 22.895,22 24,22 Z" />
 </vector>
