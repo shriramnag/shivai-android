@@ -211,3 +211,15 @@ class QuarantineTool(private val securityAgent: CyberSecurityAgent) : AgentTool 
         }
     }
 }
+
+class ListAppsTool(private val appManager: AppManager) : AgentTool {
+    override val name = "list_apps"
+    override val description = "Lists installed launchable apps on the device."
+    override suspend fun execute(action: String, params: Map<String, String>): ToolExecutionResult {
+        val apps = appManager.getInstalledLaunchableApps()
+        if (apps.isEmpty()) return ToolExecutionResult(false, "कोई app नहीं मिला।")
+        val names = apps.take(25).joinToString(", ") { it.label }
+        val summary = "आपके फोन में कुल ${apps.size} apps हैं। कुछ मुख्य: $names"
+        return ToolExecutionResult(true, summary)
+    }
+}

@@ -80,6 +80,9 @@ class TaskExecutor(
                     step.verificationEvidence = verificationEvidence
                     stepSucceeded = true
                     log(step.stepId, plan.taskId, step.tool, step.action, step.params.toString(), result.output, StepStatus.VERIFIED_SUCCESS, verificationEvidence)
+                    if (step.tool in setOf("list_apps", "system_health", "web_research")) {
+                        onStatusSpeech(result.output)
+                    }
                 } else {
                     if (attempts <= maxRetries) {
                         step.status = StepStatus.RETRYING

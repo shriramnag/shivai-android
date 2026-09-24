@@ -13,6 +13,8 @@ import com.personal.ai.shivai.core.health.SystemHealthMonitor
 import com.personal.ai.shivai.core.memory.AgentDatabase
 import com.personal.ai.shivai.core.memory.ChatMessageEntity
 import com.personal.ai.shivai.core.missions.MissionManager
+import com.personal.ai.shivai.core.phone.CallState
+import com.personal.ai.shivai.core.phone.CallStateMonitor
 import com.personal.ai.shivai.core.security.*
 import com.personal.ai.shivai.core.termux.TermuxBridge
 import com.personal.ai.shivai.core.tools.*
@@ -22,7 +24,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 
 class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -32,33 +33,39 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
     val stopController = EmergencyStopController()
     private val safetyEngine = SafetyEngine()
-    private val aiProvider = OpenAiCompatibleProvider()
 
-    // Phase 4: Network Connectivity & Advanced Offline Brain
+    // ── AI Provider: Groq (FREE) ──────────────────────────────────────────
+    private val groqProvider = GroqAiProvider()
+
+    // ── Network & Offline Brain ───────────────────────────────────────────
     val connectivityMonitor = NetworkConnectivityMonitor(application)
-    val isOnline: StateFlow<Boolean> = connectivityMonitor.isOnline
-    val networkType: StateFlow<String> = connectivityMonitor.networkType
+    val isOnline: StateFlow<Boolean>     = connectivityMonitor.isOnline
+    val networkType: StateFlow<String>   = connectivityMonitor.networkType
     val offlineBrain = AdvancedOfflineBrain()
 
-    // Phase 2 & 3: Cyber Security & Privacy Shield
-    val securityAgent = CyberSecurityAgent(application)
-    val activeThreats: StateFlow<List<SecurityThreat>> = securityAgent.activeThreats
-    val quarantinedFiles = securityAgent.quarantineManager.quarantinedFiles
+    // ── Cyber Security ────────────────────────────────────────────────────
+    val securityAgent   = CyberSecurityAgent(application)
+    val activeThreats: StateFlow<List<SecurityThreat>>   = securityAgent.activeThreats
+    val quarantinedFiles                                  = securityAgent.quarantineManager.quarantinedFiles
     val overallSecurityRisk: StateFlow<SecurityRiskLevel> = securityAgent.overallRisk
 
-    // Phase 3: Sensitive App Privacy Mode & Payment Protection
-    val isPrivacyModeActive: StateFlow<Boolean> = PrivacyModeController.isPrivacyModeActive
+    // ── Privacy & Payment ─────────────────────────────────────────────────
+    val isPrivacyModeActive: StateFlow<Boolean>           = PrivacyModeController.isPrivacyModeActive
     val activeSensitiveCategory: StateFlow<SensitiveAppCategory?> = PrivacyModeController.currentCategory
-    val privacyLogs: StateFlow<List<PrivacyEvent>> = PrivacyModeController.privacyEventLogs
-    val isShieldEnabled: StateFlow<Boolean> = PrivacyModeController.isShieldEnabled
+    val privacyLogs: StateFlow<List<PrivacyEvent>>        = PrivacyModeController.privacyEventLogs
+    val isShieldEnabled: StateFlow<Boolean>               = PrivacyModeController.isShieldEnabled
 
-    // Extended Agents
-    private val webResearchAgent = WebResearchAgent(securityAgent = securityAgent)
-    private val fileAgent = FileAgent(application)
-    private val termuxBridge = TermuxBridge(application)
-    private val systemHealthMonitor = SystemHealthMonitor(application)
+    // ── Extended Agents ───────────────────────────────────────────────────
+    private val webResearchAgent     = WebResearchAgent(securityAgent = securityAgent)
+    private val fileAgent            = FileAgent(application)
+    private val termuxBridge         = TermuxBridge(application)
+    private val systemHealthMonitor  = SystemHealthMonitor(application)
     private val permissionIntelligence = PermissionIntelligence(application)
 
+    // ── Phone Call Monitor ────────────────────────────────────────────────
+    val callMonitor = CallStateMonitor(application)
+
+    // ── Tool Registry ─────────────────────────────────────────────────────
     private val toolRegistry = ToolRegistry().apply {
         register(AppLauncherTool(appManager))
         register(AccessibilityClickTool())
@@ -67,32 +74,38 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
         register(DelayTool())
         register(WebSearchTool(application, securityAgent))
         register(ClipboardTool(application))
-        // Phase 4: Device Hardware Control Tool
         register(DeviceControlTool(application))
-        // Phase 2: Security Tools
         register(ApkScannerTool(securityAgent))
         register(LinkScannerTool(securityAgent))
         register(QuarantineTool(securityAgent))
-        // Extended Tools
+        register(ListAppsTool(appManager))
         register(WebResearchTool(webResearchAgent))
         register(FileAgentTool(fileAgent))
         register(TermuxTool(termuxBridge))
         register(SystemHealthTool(systemHealthMonitor, permissionIntelligence))
     }
 
-    val taskExecutor = TaskExecutor(toolRegistry, stopController, safetyEngine)
+    val taskExecutor  = TaskExecutor(toolRegistry, stopController, safetyEngine)
     val missionManager = MissionManager(toolRegistry, safetyEngine, stopController, memoryDao = memoryDao)
 
-    val currentPackage: StateFlow<String> = ShivAccessibilityService.currentPackage
+    val currentPackage: StateFlow<String>       = ShivAccessibilityService.currentPackage
     val isAccessibilityActive: StateFlow<Boolean> = ShivAccessibilityService.isServiceActive
-    val executionLogs = taskExecutor.logs
-    val agentStatus = taskExecutor.currentStatus
+    val executionLogs                             = taskExecutor.logs
+    val agentStatus                               = taskExecutor.currentStatus
 
     private val _confirmationPrompt = MutableStateFlow<String?>(null)
     val confirmationPrompt: StateFlow<String?> = _confirmationPrompt.asStateFlow()
     private var confirmationCallback: ((Boolean) -> Unit)? = null
 
-    // Phase 4: Multi-Turn Voice Controller and Dialog Manager
+    // Groq API key state
+    private val _groqKeySet = MutableStateFlow(false)
+    val groqKeySet: StateFlow<Boolean> = _groqKeySet.asStateFlow()
+
+    // Continuous voice mode state
+    private val _isContinuousVoiceOn = MutableStateFlow(false)
+    val isContinuousVoiceOn: StateFlow<Boolean> = _isContinuousVoiceOn.asStateFlow()
+
+    // ── Voice ─────────────────────────────────────────────────────────────
     val voiceController = VoiceController(application) { command ->
         voiceManager.onUserSpeechReceived(command)
     }
@@ -108,60 +121,94 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
     val conversationMessages = memoryDao.getMessages("default_conv")
 
+    init {
+        // Start phone call monitoring
+        callMonitor.register()
+
+        // Auto-announce incoming calls
+        viewModelScope.launch {
+            callMonitor.callEvent.collect { event ->
+                if (event.state == CallState.RINGING) {
+                    val alert = callMonitor.buildVoiceAlert(event)
+                    voiceController.speak(alert)
+                    saveMessage("assistant", alert)
+                }
+            }
+        }
+    }
+
+    // ── Groq API Key Setup ────────────────────────────────────────────────
+    fun setGroqApiKey(key: String) {
+        groqProvider.setApiKey(key)
+        _groqKeySet.value = groqProvider.hasApiKey()
+        if (_groqKeySet.value) {
+            val msg = "Groq AI connect हो गया! अब मैं full power में हूँ। पूछिए कुछ भी।"
+            voiceController.speak(msg)
+            viewModelScope.launch { saveMessage("assistant", msg) }
+        }
+    }
+
+    // ── Continuous Voice Toggle ───────────────────────────────────────────
+    fun toggleContinuousVoice() {
+        if (_isContinuousVoiceOn.value) {
+            voiceController.stopContinuousConversation()
+            _isContinuousVoiceOn.value = false
+            voiceController.speak("Conversation mode बंद।")
+        } else {
+            _isContinuousVoiceOn.value = true
+            voiceController.startContinuousConversation()
+            voiceController.speak("Conversation mode चालू। बोलिए, मैं सुन रहा हूँ।")
+        }
+    }
+
+    // ── Main Goal Submission ──────────────────────────────────────────────
     fun submitGoal(goal: String) {
         if (goal.isBlank()) return
         viewModelScope.launch {
-            memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "user", content = goal))
-
+            saveMessage("user", goal)
             val currentPkg = ShivAccessibilityService.currentPackage.value
 
-            // Payment Shield Pre-flight Check (Phase 3)
+            // Payment Shield
             val paymentCheck = PaymentShield.evaluateAction(goal, currentPkg)
             if (paymentCheck.isBlocked) {
                 val warning = PaymentShield.formatWarning(paymentCheck)
-                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = warning))
-                voiceManager.speakFinal("Payment Shield active. Financial and credential operations must be done manually for your security.")
-                voiceManager.recordTurn(goal, warning, "PAYMENT_BLOCKED")
+                respond(warning)
                 return@launch
             }
 
-            // Phase 4: Parse with Advanced Offline Brain
+            // Try Offline Brain first
             val offlineResult = offlineBrain.parseGoal(goal, currentPkg)
 
-            // 1. Missing Slot Handling (Multi-Turn Slot Filling)
+            // Missing slot
             if (offlineResult.requiresSlotPrompt && offlineResult.missingSlotName != null) {
                 val slotPrompt = PendingSlotPrompt(
                     intent = offlineResult.intent,
                     targetSlot = offlineResult.missingSlotName,
-                    promptMessageHindi = offlineResult.slotPromptHindi ?: "कृपया अतिरिक्त जानकारी प्रदान करें।",
+                    promptMessageHindi = offlineResult.slotPromptHindi ?: "कृपया अधिक जानकारी दें।",
                     promptMessageEnglish = offlineResult.slotPromptEnglish ?: "Please provide more details.",
                     accumulatedSlots = offlineResult.slots.toMutableMap()
                 )
-                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = slotPrompt.promptMessageHindi))
+                saveMessage("assistant", slotPrompt.promptMessageHindi)
                 voiceManager.requestSlotValue(slotPrompt)
                 return@launch
             }
 
-            // 2. Direct Speech Answer (No Execution Plan Needed)
-            if (offlineResult.plan == null && offlineResult.directSpeechResponse != null && offlineResult.intent != "UNKNOWN_OFFLINE") {
-                val reply = offlineResult.directSpeechResponse
-                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = reply))
-                voiceManager.speakFinal(reply)
-                voiceManager.recordTurn(goal, reply, offlineResult.intent, offlineResult.slots)
+            // Direct offline answer
+            if (offlineResult.plan == null && offlineResult.directSpeechResponse != null
+                && offlineResult.intent != "UNKNOWN_OFFLINE") {
+                respond(offlineResult.directSpeechResponse)
+                voiceManager.recordTurn(goal, offlineResult.directSpeechResponse, offlineResult.intent)
                 return@launch
             }
 
-            // 3. Executable Plan from Offline Brain
+            // Executable plan
             if (offlineResult.plan != null) {
-                val feedbackSpeech = offlineResult.directSpeechResponse ?: "कार्रवाई की जा रही है।"
-                voiceController.speak(feedbackSpeech)
-
+                val feedback = offlineResult.directSpeechResponse ?: "काम शुरू हो रहा है।"
+                voiceController.speak(feedback)
                 val job = launch {
                     taskExecutor.executePlan(
                         plan = offlineResult.plan,
-                        onStatusSpeech = { statusText ->
-                            voiceController.speak(statusText)
-                        },
+                        onStatusSpeech = { voiceController.speak(it) },
                         requestUserConfirmation = { preview ->
                             _confirmationPrompt.value = preview
                             kotlin.coroutines.suspendCoroutine { cont ->
@@ -174,33 +221,44 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
                 stopController.registerJob(job)
-                voiceManager.recordTurn(goal, feedbackSpeech, offlineResult.intent, offlineResult.slots)
+                voiceManager.recordTurn(goal, feedback, offlineResult.intent)
                 return@launch
             }
 
-            // 4. Intent Not Matched in Local Brain -> Check Connectivity
+            // Offline fallback — no internet
             if (!isOnline.value) {
-                val offlineFallback = offlineResult.directSpeechResponse
-                    ?: "इंटरनेट कनेक्शन उपलब्ध नहीं है और यह कमांड ऑफ़लाइन समर्थित नहीं है।"
-                memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = offlineFallback))
-                voiceManager.speakFinal(offlineFallback)
-                voiceManager.recordTurn(goal, offlineFallback, "OFFLINE_FALLBACK")
+                val fallback = "Internet नहीं है और यह command offline में नहीं होता। WiFi या data चालू करें।"
+                respond(fallback)
                 return@launch
             }
 
-            // 5. Online: Fallback to Cloud AI Provider
-            val screenSummary = ShivAccessibilityService.instance?.captureDeviceContext()?.toSemanticSummary() ?: ""
-            val aiResponse = aiProvider.generateCompletion(
-                listOf(AiMessage("user", goal)),
-                screenSummary
-            )
-            val responseText = aiResponse.getOrElse {
-                "मैं यह समझ नहीं पाया। कृपया दोबारा कहें, या API key सेट करें ताकि मैं cloud AI से जवाब दे सकूँ।"
+            // Online: Groq AI
+            if (groqProvider.hasApiKey()) {
+                val screenSummary = ShivAccessibilityService.instance?.captureDeviceContext()?.toSemanticSummary() ?: ""
+                val aiResult = groqProvider.generateCompletion(
+                    listOf(AiMessage("user", goal)),
+                    screenSummary
+                )
+                val reply = aiResult.getOrElse {
+                    "कुछ गड़बड़ हुई: ${it.message}। दोबारा कोशिश करें।"
+                }
+                respond(reply)
+                voiceManager.recordTurn(goal, reply, "GROQ_AI")
+            } else {
+                // No API key yet
+                val noKey = "Groq AI key नहीं है। Settings में जाकर free key डालें — groq.com पर बनाएँ।"
+                respond(noKey)
             }
-            memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = responseText))
-            voiceManager.speakFinal(responseText)
-            voiceManager.recordTurn(goal, responseText, "ONLINE_LLM")
         }
+    }
+
+    private suspend fun respond(text: String) {
+        saveMessage("assistant", text)
+        voiceController.speak(text)
+    }
+
+    private suspend fun saveMessage(role: String, content: String) {
+        memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = role, content = content))
     }
 
     fun confirmAction(approved: Boolean) {
@@ -211,64 +269,32 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerEmergencyStop() {
         val result = stopController.triggerEmergencyStop()
         voiceManager.reset()
-        viewModelScope.launch {
-            memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = result))
-        }
+        viewModelScope.launch { saveMessage("assistant", result) }
     }
 
     fun toggleVoice() {
-        if (voiceState.value is VoiceState.Listening) {
-            voiceController.stopListening()
-        } else {
-            voiceController.startListening("hi-IN")
-        }
+        toggleContinuousVoice()
     }
 
     fun scanUrlManually(url: String) {
         viewModelScope.launch {
             val result = securityAgent.evaluateUrl(url)
-            val msg = "Link Scan [${result.domain}]: ${result.riskLevel.name}. Indicators: ${result.indicators.joinToString("; ").ifBlank { "Clean" }}"
-            memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = msg))
-            voiceController.speak("Link analysis complete. Risk level is ${result.riskLevel.name}")
+            val msg = "Link Scan [${result.domain}]: ${result.riskLevel.name}. ${result.indicators.joinToString("; ").ifBlank { "Clean" }}"
+            respond(msg)
         }
     }
 
-    fun scanApkManually(path: String) {
-        viewModelScope.launch {
-            val result = securityAgent.evaluateApk(path)
-            val msg = "APK Scan [${result.packageName}]: ${result.riskLevel.name}. Suspicious perms: ${result.suspiciousPermissions.size}"
-            memoryDao.insertMessage(ChatMessageEntity(conversationId = "default_conv", role = "assistant", content = msg))
-            voiceController.speak("APK scan complete. Risk level is ${result.riskLevel.name}")
-        }
-    }
+    fun togglePrivacyShield(enabled: Boolean) = PrivacyModeController.setShieldEnabled(enabled)
+    fun clearPrivacyLogs() = PrivacyModeController.clearLogs()
 
-    fun togglePrivacyShield(enabled: Boolean) {
-        PrivacyModeController.setShieldEnabled(enabled)
-    }
-
-    fun clearPrivacyLogs() {
-        PrivacyModeController.clearLogs()
-    }
-
-    fun restoreQuarantine(id: String) {
-        viewModelScope.launch {
-            securityAgent.quarantineManager.restore(id)
-        }
-    }
-
-    fun deleteQuarantine(id: String) {
-        viewModelScope.launch {
-            securityAgent.quarantineManager.deletePermanently(id)
-        }
-    }
-
-    fun dismissThreat(id: String) {
-        securityAgent.clearThreat(id)
-    }
+    fun restoreQuarantine(id: String) { viewModelScope.launch { securityAgent.quarantineManager.restore(id) } }
+    fun deleteQuarantine(id: String)  { viewModelScope.launch { securityAgent.quarantineManager.deletePermanently(id) } }
+    fun dismissThreat(id: String)     { securityAgent.clearThreat(id) }
 
     override fun onCleared() {
         super.onCleared()
         connectivityMonitor.release()
         voiceController.release()
+        callMonitor.unregister()
     }
 }

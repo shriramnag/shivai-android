@@ -38,13 +38,56 @@ fun AgentHomeScreen(viewModel: AgentViewModel) {
     val isOnline        by viewModel.isOnline.collectAsState()
     val dialogState     by viewModel.dialogState.collectAsState()
     val isPrivacyActive by viewModel.isPrivacyModeActive.collectAsState()
+    val groqKeySet      by viewModel.groqKeySet.collectAsState()
+    val isContinuousOn  by viewModel.isContinuousVoiceOn.collectAsState()
 
     var textInput by remember { mutableStateOf("") }
+    var showSettings by remember { mutableStateOf(false) }
+    var apiKeyInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) scope.launch { listState.animateScrollToItem(messages.size - 1) }
+    }
+
+    if (showSettings) {
+        AlertDialog(
+            onDismissRequest = { showSettings = false },
+            containerColor = NavyCard,
+            title = { Text("Groq AI Setup (Free)", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp) },
+            text = {
+                Column {
+                    Text("console.groq.com पर जाकर free API key बनाएँ, फिर यहाँ paste करें:",
+                        color = TextSecondary, fontSize = 12.sp)
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = apiKeyInput, onValueChange = { apiKeyInput = it },
+                        placeholder = { Text("gsk_...", color = TextSecondary, fontSize = 12.sp) },
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VioletPrimary, unfocusedBorderColor = Color(0xFF2D3560),
+                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                            cursorColor = VioletPrimary)
+                    )
+                    if (groqKeySet) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("✓ Key पहले से active है", color = TealSecondary, fontSize = 11.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (apiKeyInput.isNotBlank()) viewModel.setGroqApiKey(apiKeyInput)
+                    showSettings = false
+                }, colors = ButtonDefaults.buttonColors(containerColor = VioletPrimary)) {
+                    Text("SAVE", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSettings = false }) { Text("CANCEL", color = TextSecondary) }
+            }
+        )
     }
 
     if (confirmPrompt != null) {
@@ -98,6 +141,12 @@ fun AgentHomeScreen(viewModel: AgentViewModel) {
                         fontWeight = FontWeight.Bold,
                         color = if (isAccessibility) TealSecondary else ErrorRed)
                 }
+                Spacer(Modifier.width(6.dp))
+                IconButton(onClick = { showSettings = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Settings, "Settings",
+                        tint = if (groqKeySet) TealSecondary else GoldAccent,
+                        modifier = Modifier.size(20.dp))
+                }
             }
         }
 
@@ -109,6 +158,10 @@ fun AgentHomeScreen(viewModel: AgentViewModel) {
             Text("App: ${currentApp.removePrefix("com.").take(30)}", fontSize = 11.sp,
                 color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f))
+            if (isContinuousOn) {
+                Text("🎙️ बातचीत जारी", fontSize = 10.sp, color = TealSecondary, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+            }
             Text(agentStatus, fontSize = 11.sp, color = VioletLight, fontWeight = FontWeight.Medium)
         }
 

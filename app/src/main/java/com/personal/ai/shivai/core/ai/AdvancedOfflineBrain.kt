@@ -99,6 +99,24 @@ class AdvancedOfflineBrain {
             )
         }
 
+        // List installed apps (home screen / all apps query)
+        if (clean.contains("kaunse app") || clean.contains("कौनसे ऐप") || clean.contains("कौन से ऐप") ||
+            clean.contains("कौन सा ऐप") || clean.contains("list apps") || clean.contains("which apps") ||
+            clean.contains("home screen me") || clean.contains("home screen में") || clean.contains("saare app")) {
+            return OfflineIntentResult(
+                intent = "LIST_APPS",
+                slots = emptyMap(),
+                plan = TaskPlan(
+                    taskId = taskId,
+                    originalGoal = goal,
+                    steps = mutableListOf(
+                        TaskStep("S-1", "List Installed Apps", "list_apps", "list", emptyMap(), TrustLevel.SAFE)
+                    )
+                ),
+                directSpeechResponse = "आपके apps की सूची निकाल रहा हूँ।"
+            )
+        }
+
         // 2. Hardware / Device Controls
         if (clean.contains("torch on") || clean.contains("flashlight on") || clean.contains("टॉर्च चालू") || clean.contains("लाइट जलाओ") || clean.contains("torch chalu")) {
             return OfflineIntentResult(
