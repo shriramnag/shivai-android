@@ -5,18 +5,27 @@
     <path android:pathData="M54,12 A42,42 0 1,1 53.99,12 Z"
         android:strokeColor="#7850DC" android:strokeWidth="3"
         android:fillColor="@android:color/transparent"/>
-    <path android:pathData="M36,42 A18,18 0 0,1 72,42 A18,18 0 0,1 54,54"
+    <path android:pathData="M36,42 A18,18 0 0,1 72,42 A18,18 0,1 1 54,54"
         android:strokeColor="#FFD73C" android:strokeWidth="7"
         android:fillColor="@android:color/transparent" android:strokeLineCap="round"/>
-    <path android:pathData="M72,66 A18,18 0 0,1 36,66 A18,18 0 0,1 54,54"
+    <path android:pathData="M72,66 A18,18 0 0,1 36,66 A18,18 0,0 1 54,54"
         android:strokeColor="#FFD73C" android:strokeWidth="7"
         android:fillColor="@android:color/transparent" android:strokeLineCap="round"/>
-    <circle android:cx="54" android:cy="12" android:r="3" android:fillColor="#FFD73C"/>
-    <circle android:cx="96" android:cy="54" android:r="3" android:fillColor="#FFD73C"/>
-    <circle android:cx="54" android:cy="96" android:r="3" android:fillColor="#FFD73C"/>
-    <circle android:cx="12" android:cy="54" android:r="3" android:fillColor="#FFD73C"/>
-    <circle android:cx="84" android:cy="24" android:r="2" android:fillColor="#8C64FF"/>
-    <circle android:cx="84" android:cy="84" android:r="2" android:fillColor="#8C64FF"/>
-    <circle android:cx="24" android:cy="84" android:r="2" android:fillColor="#8C64FF"/>
-    <circle android:cx="24" android:cy="24" android:r="2" android:fillColor="#8C64FF"/>
+
+    <path android:pathData="M54,9 A3,3 0,1 0,54,15 A3,3 0,1 0,54,9 Z"
+        android:fillColor="#FFD73C"/>
+    <path android:pathData="M96,51 A3,3 0,1 0,96,57 A3,3 0,1 0,96,51 Z"
+        android:fillColor="#FFD73C"/>
+    <path android:pathData="M54,93 A3,3 0,1 0,54,99 A3,3 0,1 0,54,93 Z"
+        android:fillColor="#FFD73C"/>
+    <path android:pathData="M12,51 A3,3 0,1 0,12,57 A3,3 0,1 0,12,51 Z"
+        android:fillColor="#FFD73C"/>
+    <path android:pathData="M84,22 A2,2 0,1 0,84,26 A2,2 0,1 0,84,22 Z"
+        android:fillColor="#8C64FF"/>
+    <path android:pathData="M84,82 A2,2 0,1 0,84,86 A2,2 0,1 0,84,82 Z"
+        android:fillColor="#8C64FF"/>
+    <path android:pathData="M24,82 A2,2 0,1 0,24,86 A2,2 0,1 0,24,82 Z"
+        android:fillColor="#8C64FF"/>
+    <path android:pathData="M24,22 A2,2 0,1 0,24,26 A2,2 0,1 0,24,22 Z"
+        android:fillColor="#8C64FF"/>
 </vector>
