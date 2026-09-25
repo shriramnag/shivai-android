@@ -49,4 +49,6 @@ set -- \
     org.gradle.wrapper.GradleWrapperMain \
     "$@"
 
-exec "$JAVACMD" "$DEFAULT_JVM_OPTS" "$@"
+# DEFAULT_JVM_OPTS contains two JVM arguments. It must be expanded unquoted;
+# quoting it passes both options as one literal argument to Java.
+exec "$JAVACMD" $DEFAULT_JVM_OPTS "$@"
