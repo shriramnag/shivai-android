@@ -3,7 +3,6 @@
 APP_HOME=$(CDPATH= cd "${0%/*}" 2>/dev/null && pwd) || APP_HOME=$(pwd)
 APP_NAME="Gradle"
 APP_BASE_NAME="${0##*/}"
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
 MAX_FD=maximum
 
 warn() { echo "$*"; }
@@ -39,16 +38,16 @@ if [ "$cygwin" = "false" ] && [ "$darwin" = "false" ] && [ "$nonstop" = "false" 
     esac
     case $MAX_FD in
       '' | soft) ;;
-      *) ulimit -n "$MAX_FD" || warn "Could not set max file descriptor limit to $MAX_FD" ;;
+      *) ulimit -n "$MAX_FD" || warn "Could not set max file descriptor limit" ;;
     esac
 fi
 
+# JVM arguments are passed separately. Keeping them as separate shell words
+# prevents Java from treating the quoted options as a class name.
 set -- \
     "-Dorg.gradle.appname=$APP_BASE_NAME" \
     -classpath "$CLASSPATH" \
     org.gradle.wrapper.GradleWrapperMain \
     "$@"
 
-# DEFAULT_JVM_OPTS contains two JVM arguments. It must be expanded unquoted;
-# quoting it passes both options as one literal argument to Java.
-exec "$JAVACMD" $DEFAULT_JVM_OPTS "$@"
+exec "$JAVACMD" -Xmx64m -Xms64m "$@"
