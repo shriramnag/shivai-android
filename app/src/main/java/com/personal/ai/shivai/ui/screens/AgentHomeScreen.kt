@@ -1,32 +1,3 @@
-package com.personal.ai.shivai.ui.screens
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.personal.ai.shivai.core.memory.ChatMessageEntity
-import com.personal.ai.shivai.core.voice.DialogSessionState
-import com.personal.ai.shivai.core.voice.VoiceState
-import com.personal.ai.shivai.ui.AgentViewModel
-import com.personal.ai.shivai.ui.theme.*
-import kotlinx.coroutines.launch
-
 @Composable
 fun AgentHomeScreen(viewModel: AgentViewModel) {
     val currentApp      by viewModel.currentPackage.collectAsState()
@@ -39,13 +10,19 @@ fun AgentHomeScreen(viewModel: AgentViewModel) {
     val dialogState     by viewModel.dialogState.collectAsState()
     val isPrivacyActive by viewModel.isPrivacyModeActive.collectAsState()
     val groqKeySet      by viewModel.groqKeySet.collectAsState()
+    val currentModel    by viewModel.groqModelName.collectAsState()
     val isContinuousOn  by viewModel.isContinuousVoiceOn.collectAsState()
 
     var textInput by remember { mutableStateOf("") }
     var showSettings by remember { mutableStateOf(false) }
     var apiKeyInput by remember { mutableStateOf("") }
+    var modelInput by remember { mutableStateOf(currentModel) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(currentModel) {
+        modelInput = currentModel
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) scope.launch { listState.animateScrollToItem(messages.size - 1) }
@@ -70,15 +47,29 @@ fun AgentHomeScreen(viewModel: AgentViewModel) {
                             focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
                             cursorColor = VioletPrimary)
                     )
+                    Spacer(Modifier.height(10.dp))
+                    Text("Groq model name:", color = TextSecondary, fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = modelInput, onValueChange = { modelInput = it },
+                        placeholder = { Text("llama-3.3-70b-versatile", color = TextSecondary, fontSize = 12.sp) },
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VioletPrimary, unfocusedBorderColor = Color(0xFF2D3560),
+                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                            cursorColor = VioletPrimary)
+                    )
                     if (groqKeySet) {
                         Spacer(Modifier.height(8.dp))
                         Text("✓ Key पहले से active है", color = TealSecondary, fontSize = 11.sp)
+                        Text("Model: $currentModel", color = TextSecondary, fontSize = 11.sp)
                     }
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    if (apiKeyInput.isNotBlank()) viewModel.setGroqApiKey(apiKeyInput)
+                    if (apiKeyInput.isNotBlank() || modelInput.isNotBlank()) {
+                        viewModel.setGroqConfig(apiKeyInput, modelInput)
+                    }
                     showSettings = false
                 }, colors = ButtonDefaults.buttonColors(containerColor = VioletPrimary)) {
                     Text("SAVE", fontWeight = FontWeight.Bold)
