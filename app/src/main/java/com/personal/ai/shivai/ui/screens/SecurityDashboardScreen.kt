@@ -3,257 +3,212 @@ package com.personal.ai.shivai.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.personal.ai.shivai.core.security.SecurityRiskLevel
-import com.personal.ai.shivai.core.security.SecurityThreat
-import com.personal.ai.shivai.core.security.QuarantinedFile
 import com.personal.ai.shivai.ui.AgentViewModel
 
 @Composable
 fun SecurityDashboardScreen(viewModel: AgentViewModel) {
-    val overallRisk by viewModel.overallSecurityRisk.collectAsState()
-    val threats by viewModel.activeThreats.collectAsState()
-    val quarantined by viewModel.quarantinedFiles.collectAsState()
+    val isOnline = viewModel.isOnline.collectAsState()
+    val networkType = viewModel.networkType.collectAsState()
+    val activeThreats = viewModel.activeThreats.collectAsState()
+    val overallRisk = viewModel.overallSecurityRisk.collectAsState()
+    val isPrivacyModeActive = viewModel.isPrivacyModeActive.collectAsState()
+    val isAccessibilityActive = viewModel.isAccessibilityActive.collectAsState()
 
-    var manualUrlInput by remember { mutableStateOf("") }
-
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        val statusColor = when (overallRisk) {
-            SecurityRiskLevel.SAFE -> Color(0xFF4CAF50)
-            SecurityRiskLevel.LOW -> Color(0xFF8BC34A)
-            SecurityRiskLevel.MEDIUM -> Color(0xFFFFA000)
-            SecurityRiskLevel.HIGH -> Color(0xFFFF5722)
-            SecurityRiskLevel.CRITICAL -> Color(0xFFD32F2F)
+        // Header
+        item {
+            Text(
+                "Security Dashboard",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(statusColor)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "Shiv AI Cyber Security Shield",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "Overall Threat Level: ${overallRisk.name}",
-                        color = statusColor,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    )
-                }
+        // Network Status
+        item {
+            StatusCard(
+                title = "Network Status",
+                icon = if (isOnline.value) Icons.Default.CloudDone else Icons.Default.CloudOff,
+                statusText = if (isOnline.value) "Online (${networkType.value})" else "Offline",
+                statusColor = if (isOnline.value) Color.Green else Color.Red
+            )
+        }
+
+        // Security Risk Level
+        item {
+            val riskColor = when (overallRisk.value?.name) {
+                "CRITICAL" -> Color.Red
+                "HIGH" -> Color(0xFFFF7043)
+                "MEDIUM" -> Color(0xFFFFA726)
+                "LOW" -> Color(0xFFAED581)
+                else -> Color.Green
             }
+            
+            StatusCard(
+                title = "Overall Security Risk",
+                icon = Icons.Default.SecurityAlert,
+                statusText = overallRisk.value?.name ?: "SAFE",
+                statusColor = riskColor
+            )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = manualUrlInput,
-            onValueChange = { manualUrlInput = it },
-            label = { Text("Enter URL to Scan for Phishing / Threat") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            trailingIcon = {
-                IconButton(
-                    onClick = {
-                        if (manualUrlInput.isNotBlank()) {
-                            viewModel.scanUrlManually(manualUrlInput)
-                            manualUrlInput = ""
+        // Active Threats
+        item {
+            if (activeThreats.value.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "🚨 Active Threats (${activeThreats.value.size})",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Red
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        activeThreats.value.forEach { threat ->
+                            Text(
+                                "• ${threat.threatType}: ${threat.description}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
-                ) {
-                    Icon(Icons.Default.Security, contentDescription = "Scan URL")
                 }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Active Security Alerts (${threats.size})",
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        if (threats.isEmpty()) {
-            Text(
-                text = "No active threats detected. All systems protected.",
-                fontSize = 13.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(vertical = 6.dp)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                items(threats) { threat ->
-                    ThreatCard(threat = threat, onDismiss = { viewModel.dismissThreat(threat.id) })
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Quarantined Files (${quarantined.size})",
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.secondary
-        )
-
-        if (quarantined.isEmpty()) {
-            Text(
-                text = "No quarantined files.",
-                fontSize = 13.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(vertical = 6.dp)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                items(quarantined) { item ->
-                    QuarantineCard(
-                        item = item,
-                        onRestore = { viewModel.restoreQuarantine(item.id) },
-                        onDelete = { viewModel.deleteQuarantine(item.id) }
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Green.copy(alpha = 0.1f)
                     )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.Green)
+                        Text("No active threats detected", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
-    }
-}
 
-@Composable
-fun ThreatCard(threat: SecurityThreat, onDismiss: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        // Privacy Mode Status
+        item {
+            StatusCard(
+                title = "Privacy Mode",
+                icon = if (isPrivacyModeActive.value) Icons.Default.Lock else Icons.Default.LockOpen,
+                statusText = if (isPrivacyModeActive.value) "ACTIVE" else "Inactive",
+                statusColor = if (isPrivacyModeActive.value) Color.Green else Color(0xFFBDBDBD)
+            )
+        }
+
+        // Accessibility Status
+        item {
+            StatusCard(
+                title = "Accessibility Service",
+                icon = if (isAccessibilityActive.value) Icons.Default.HandymanTwoTone else Icons.Default.Close,
+                statusText = if (isAccessibilityActive.value) "ACTIVE" else "Inactive",
+                statusColor = if (isAccessibilityActive.value) Color.Green else Color(0xFFBDBDBD)
+            )
+        }
+
+        // Action Buttons
+        item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "🚨 ${threat.title}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-                Text(
-                    text = threat.risk.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Evidence: ${threat.evidence}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            Text(
-                text = "Action: ${threat.recommendedAction}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) {
-                    Text("Dismiss", color = MaterialTheme.colorScheme.error)
+                Button(
+                    onClick = { viewModel.togglePrivacyShield(!viewModel.isShieldEnabled.collectAsState().value) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Privacy Shield")
                 }
+                Button(
+                    onClick = { viewModel.clearPrivacyLogs() },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Clear Logs")
+                }
+            }
+        }
+
+        // Emergency Stop Button
+        item {
+            Button(
+                onClick = { viewModel.triggerEmergencyStop() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Red
+                )
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("EMERGENCY STOP", fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-fun QuarantineCard(
-    item: QuarantinedFile,
-    onRestore: () -> Unit,
-    onDelete: () -> Unit
+fun StatusCard(
+    title: String,
+    icon: androidx.compose.material.icons.materialIcon,
+    statusText: String,
+    statusColor: Color
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(8.dp)
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = item.fileName,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
-            Text(
-                text = "Reason: ${item.reason}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "SHA256: ${item.sha256.take(16)}...",
-                fontSize = 11.sp,
-                color = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onRestore) {
-                    Text("Restore", fontSize = 11.sp)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete", fontSize = 11.sp)
-                }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(icon, contentDescription = null, tint = statusColor)
+                Text(title, fontWeight = FontWeight.SemiBold)
             }
+            Text(
+                statusText,
+                fontWeight = FontWeight.Bold,
+                color = statusColor,
+                style = MaterialTheme.typography.labelMedium
+            )
         }
     }
 }
