@@ -101,6 +101,9 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     private val _groqKeySet = MutableStateFlow(false)
     val groqKeySet: StateFlow<Boolean> = _groqKeySet.asStateFlow()
 
+    private val _groqModelName = MutableStateFlow(groqProvider.getModelName())
+    val groqModelName: StateFlow<String> = _groqModelName.asStateFlow()
+
     // Continuous voice mode state
     private val _isContinuousVoiceOn = MutableStateFlow(false)
     val isContinuousVoiceOn: StateFlow<Boolean> = _isContinuousVoiceOn.asStateFlow()
@@ -139,12 +142,26 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Groq API Key Setup ────────────────────────────────────────────────
     fun setGroqApiKey(key: String) {
-        groqProvider.setApiKey(key)
+        setGroqConfig(key, _groqModelName.value)
+    }
+
+    fun setGroqConfig(key: String, model: String? = null) {
+        val normalizedKey = key.trim()
+        if (normalizedKey.isNotBlank()) {
+            groqProvider.setApiKey(normalizedKey)
+        }
+        val normalizedModel = model?.trim().orEmpty()
+        if (normalizedModel.isNotBlank()) {
+            groqProvider.setModel(normalizedModel)
+        }
+        _groqModelName.value = groqProvider.getModelName()
         _groqKeySet.value = groqProvider.hasApiKey()
         if (_groqKeySet.value) {
             val msg = "Groq AI connect हो गया! अब मैं full power में हूँ। पूछिए कुछ भी।"
-            voiceController.speak(msg)
-            viewModelScope.launch { saveMessage("assistant", msg) }
+            viewModelScope.launch {
+                saveMessage("assistant", msg)
+                voiceController.speak(msg)
+            }
         }
     }
 
@@ -232,6 +249,25 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            // Phase 2: Web search / latest news / current-info routing
+            if (webResearchAgent.isWebSearchNeeded(goal)) {
+                val research = webResearchAgent.research(goal)
+                val response = when {
+                    research.sources.isNotEmpty() -> {
+                        val header = if (research.warnings.isNotEmpty()) {
+                            "⚠️ कुछ सुरक्षित नहीं स्रोत हटाए गए हैं।\n\n"
+                        } else {
+                            ""
+                        }
+                        "$header${research.summary}"
+                    }
+                    research.summary.isNotBlank() -> research.summary
+                    else -> "आज की खबर / ऑनलाइन जानकारी अभी उपलब्ध नहीं है।"
+                }
+                respond(response)
+                return@launch
+            }
+
             // Online: Groq AI
             if (groqProvider.hasApiKey()) {
                 val screenSummary = ShivAccessibilityService.instance?.captureDeviceContext()?.toSemanticSummary() ?: ""
@@ -240,7 +276,11 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     screenSummary
                 )
                 val reply = aiResult.getOrElse {
-                    "कुछ गड़बड़ हुई: ${it.message}। दोबारा कोशिश करें।"
+                    if (it.message?.contains("NO_KEY", true) == true) {
+                        "Groq AI key नहीं है। Settings में जाकर free key डालें — groq.com पर बनाएँ।"
+                    } else {
+                        it.message ?: "कुछ गड़बड़ हुई: दोबारा कोशिश करें।"
+                    }
                 }
                 respond(reply)
                 voiceManager.recordTurn(goal, reply, "GROQ_AI")
