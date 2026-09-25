@@ -1,13 +1,24 @@
 package com.personal.ai.shivai.core.ai
 
-data class AiMessage(
-    val role: String,
-    val content: String
-)
-
+/**
+ * Abstract AI Provider Interface
+ * Allows multiple AI backends without changing core agent logic
+ */
 interface AiProvider {
+    
+    fun setApiKey(key: String)
+    
+    fun hasApiKey(): Boolean
+    
+    fun getModelName(): String
+    
     suspend fun generateCompletion(
         messages: List<AiMessage>,
-        screenContext: String
+        context: String = ""
     ): Result<String>
 }
+
+data class AiMessage(
+    val role: String,  // "user" or "assistant" or "system"
+    val content: String
+)
